@@ -17,6 +17,12 @@ pipeline {
                description: 'Path to the release manifest defining components + image types')
     }
 
+    environment {
+        // Bridges the Jenkins *parameter* into a real shell environment
+        // variable — sh steps below can't see params.* directly.
+        RELEASE_MANIFEST_PATH = "${params.RELEASE_MANIFEST_PATH}"
+    }
+
     stages {
         stage('Checkout') {
             steps {
