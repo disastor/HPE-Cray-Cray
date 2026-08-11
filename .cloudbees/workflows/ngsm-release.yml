@@ -92,7 +92,7 @@ jobs:
           bash scripts/install-via-login-node.sh "${{ needs.build-iso.outputs.artifact-url }}"
 
       - name: Register deployed artifact
-        uses: cloudbees-io/register-deployed-artifact@v1
+        uses: cloudbees-io/register-deployed-artifact@v2
         with:
           name: ngsm-release-iso
           target-environment: hpc-test-cluster
