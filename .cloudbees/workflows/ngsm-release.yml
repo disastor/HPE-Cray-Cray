@@ -48,12 +48,12 @@ jobs:
         uses: cloudbees-io/register-build-artifact@v1
         with:
           name: ngsm-release-iso
-          url: ${{ fromJSON(steps.run-jenkins-build.outputs.jenkins_output).artifact_url }}
-          version: ${{ fromJSON(steps.run-jenkins-build.outputs.jenkins_output).BUILD_NUMBER }}
+          url: https://artifactory.example.internal/hpe-releases/ngsm/${{ cloudbees.version }}/ngsm-release.iso
+          version: ${{ cloudbees.version }}
 
     outputs:
-      artifact-url: ${{ fromJSON(steps.run-jenkins-build.outputs.jenkins_output).artifact_url }}
-      artifact-version: ${{ fromJSON(steps.run-jenkins-build.outputs.jenkins_output).BUILD_NUMBER }}
+      artifact-url: https://artifactory.example.internal/hpe-releases/ngsm/${{ cloudbees.version }}/ngsm-release.iso
+      artifact-version: ${{ cloudbees.version }}
 
   # Opt-in governance layer: additive, not a prerequisite. Turned on here
   # to demo the RBAC/audit-trail story, but the workflow works with this
