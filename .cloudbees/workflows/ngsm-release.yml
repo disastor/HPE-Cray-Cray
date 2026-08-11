@@ -100,7 +100,7 @@ jobs:
           version: ${{ needs.build-iso.outputs.artifact-version }}
 
   notify:
-    needs: deploy-test-cluster
+    needs: [deploy-test-cluster, build-iso]
     steps:
       - name: Post test status to Slack
         uses: docker://bash:5.2
@@ -108,5 +108,6 @@ jobs:
         run: |
           echo "Posting to Slack #hpc-releases:"
           echo "ngsm-release ${{ needs.build-iso.outputs.artifact-version }} deployed to hpc-test-cluster — all nodes reported success"
-          # In production: curl -X POST -H 'Content-type: application/json' \
-          #   --data "{\"text\":\"...\"}" "${{ secrets.SLACK_WEBHOOK_URL }}"
+          # In production, this step would post to a real Slack webhook
+          # via a secret (e.g. secrets.SLACK_WEBHOOK_URL) configured in
+          # Unify - not needed for this demo.
