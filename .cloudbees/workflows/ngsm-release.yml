@@ -1,0 +1,112 @@
+# ngsm-release.yml
+#
+# Unify RO workflow for the HPE demo. This does NOT replace the Jenkins
+# job, the Ansible playbooks, or the login-node install pattern — it
+# orchestrates them, adds the one-click trigger + visible logs Jennifer
+# asked for, an opt-in approval gate, and traceability from the Jenkins
+# build through to the deployed environment.
+#
+# Demo narrative mapping (see HPE_Unify_RO_Demo_Plan.md, Section 3):
+#   build-iso            -> Scene 2: orchestrate what already exists
+#   release-approval     -> Scene 4: governance, opt-in
+#   deploy-test-cluster  -> Scene 2/6: login-node pattern + CI->CD traceability
+#   notify               -> mirrors their existing Slack test-status step
+
+apiVersion: automation.cloudbees.io/v1alpha1
+kind: workflow
+name: ngsm-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release-manifest:
+        type: string
+        default: manifest/release-manifest.yaml
+        description: Path to the release manifest for this run
+  push:
+    branches:
+      - main
+
+jobs:
+
+  build-iso:
+    steps:
+      - name: Check out repository
+        uses: cloudbees-io/checkout@v1
+
+      - id: run-jenkins-build
+        name: Run Jenkins ISO build job
+        uses: cloudbees-io/jenkins-run-job@v2
+        with:
+          url: ${{ vars.JENKINS_URL }}
+          username: ${{ secrets.JENKINS_USERNAME }}
+          token: ${{ secrets.JENKINS_TOKEN }}
+          job-name: ngsm-iso-build
+          parameters: '{"RELEASE_MANIFEST_PATH":"${{ inputs.release-manifest }}"}'
+
+      - name: Register build artifact
+        uses: cloudbees-io/register-build-artifact@v3
+        with:
+          name: ngsm-release-iso
+          url: ${{ fromJSON(steps.run-jenkins-build.outputs.jenkins_output).artifact_url }}
+          version: ${{ fromJSON(steps.run-jenkins-build.outputs.jenkins_output).BUILD_NUMBER }}
+
+    outputs:
+      artifact-url: ${{ fromJSON(steps.run-jenkins-build.outputs.jenkins_output).artifact_url }}
+      artifact-version: ${{ fromJSON(steps.run-jenkins-build.outputs.jenkins_output).BUILD_NUMBER }}
+
+  # Opt-in governance layer: additive, not a prerequisite. Turned on here
+  # to demo the RBAC/audit-trail story, but the workflow works with this
+  # job removed entirely — matches "start with zero gates" from the plan.
+  release-approval:
+    needs: build-iso
+    with:
+      approvers: "hpc-install-team"
+      disallowLaunchByUser: false
+      instructions: >
+        Approve deployment of ngsm-release build
+        ${{ needs.build-iso.outputs.artifact-version }}
+        to the HPC test cluster.
+      approvalInputs: |
+        confirm-manifest-reviewed:
+          type: boolean
+          default: false
+    timeout-minutes: 4320
+    delegates: cloudbees-io/manual-approval/custom-job.yml@v1
+
+  deploy-test-cluster:
+    needs: [build-iso, release-approval]
+    environment: hpc-test-cluster
+    steps:
+      - name: Check out repository
+        uses: cloudbees-io/checkout@v1
+
+      # Stand-in for reaching the private, firewalled HPC cluster. In
+      # production this targets the real login-node gateway via SSH
+      # (or a self-hosted runner placed on that side of the network
+      # boundary) — same pattern already trusted for the Snyk buffer.
+      - name: Deploy via login-node gateway (simulated)
+        uses: docker://bash:5.2
+        shell: sh
+        run: |
+          bash scripts/install-via-login-node.sh "${{ needs.build-iso.outputs.artifact-url }}"
+
+      - name: Register deployed artifact
+        uses: cloudbees-io/register-deployed-artifact@v1
+        with:
+          name: ngsm-release-iso
+          target-environment: hpc-test-cluster
+          url: ${{ needs.build-iso.outputs.artifact-url }}
+          version: ${{ needs.build-iso.outputs.artifact-version }}
+
+  notify:
+    needs: deploy-test-cluster
+    steps:
+      - name: Post test status to Slack
+        uses: docker://bash:5.2
+        shell: sh
+        run: |
+          echo "Posting to Slack #hpc-releases:"
+          echo "ngsm-release ${{ needs.build-iso.outputs.artifact-version }} deployed to hpc-test-cluster — all nodes reported success"
+          # In production: curl -X POST -H 'Content-type: application/json' \
+          #   --data "{\"text\":\"...\"}" "${{ secrets.SLACK_WEBHOOK_URL }}"
