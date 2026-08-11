@@ -32,7 +32,7 @@ jobs:
   build-iso:
     steps:
       - name: Check out repository
-        uses: cloudbees-io/checkout@v1
+        uses: cloudbees-io/checkout@v2
 
       - id: run-jenkins-build
         name: Run Jenkins ISO build job
@@ -45,7 +45,7 @@ jobs:
           parameters: '{"RELEASE_MANIFEST_PATH":"${{ inputs.release-manifest }}"}'
 
       - name: Register build artifact
-        uses: cloudbees-io/register-build-artifact@v3
+        uses: cloudbees-io/register-build-artifact@v1
         with:
           name: ngsm-release-iso
           url: ${{ fromJSON(steps.run-jenkins-build.outputs.jenkins_output).artifact_url }}
@@ -79,7 +79,7 @@ jobs:
     environment: hpc-test-cluster
     steps:
       - name: Check out repository
-        uses: cloudbees-io/checkout@v1
+        uses: cloudbees-io/checkout@v2
 
       # Stand-in for reaching the private, firewalled HPC cluster. In
       # production this targets the real login-node gateway via SSH
