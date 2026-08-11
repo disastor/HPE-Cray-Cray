@@ -44,7 +44,8 @@ jobs:
           job-name: ngsm-iso-build
           parameters: '{"RELEASE_MANIFEST_PATH":"${{ inputs.release-manifest }}"}'
 
-      - name: Register build artifact
+      - id: register-artifact
+        name: Register build artifact
         uses: cloudbees-io/register-build-artifact@v2
         with:
           name: ngsm-release-iso
@@ -52,6 +53,7 @@ jobs:
           version: ${{ cloudbees.version }}
 
     outputs:
+      artifact-id: ${{ steps.register-artifact.outputs.artifact-id }}
       artifact-url: https://artifactory.example.internal/hpe-releases/ngsm/${{ cloudbees.version }}/ngsm-release.iso
       artifact-version: ${{ cloudbees.version }}
 
@@ -92,12 +94,9 @@ jobs:
           bash scripts/install-via-login-node.sh "${{ needs.build-iso.outputs.artifact-url }}"
 
       - name: Register deployed artifact
-        uses: cloudbees-io/register-deployed-artifact@v1
+        uses: cloudbees-io/register-deployed-artifact@v2
         with:
-          name: ngsm-release-iso
-          target-environment: hpc-test-cluster
-          url: ${{ needs.build-iso.outputs.artifact-url }}
-          version: ${{ needs.build-iso.outputs.artifact-version }}
+          artifact-id: ${{ needs.build-iso.outputs.artifact-id }}
 
   notify:
     needs: [deploy-test-cluster, build-iso]
