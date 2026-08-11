@@ -1,0 +1,45 @@
+# release-manifest.yaml
+#
+# Mirrors TriggerDB v2's "Products Management" + "Image Types Management"
+# structure: a top-level product bundle, its component versions, and the
+# architecture/distribution combinations it needs to be built for.
+#
+# This is the file a product-team developer would PR a change to (e.g. to
+# bump a version, or add a distro), matching the "config file -> PR review
+# -> pipeline parameters" pattern Jennifer described on the call.
+
+release:
+  name: ngsm-release-candidate
+  # Same product bundle shape as TriggerDB's Products Management page:
+  # a set of named products, each with an independently-versioned artifact.
+  components:
+    - product: NGSM-Base
+      version: 4.2.1
+      artifact-source: artifactory://hpe-releases/ngsm-base/4.2.1
+      third-party: false
+    - product: HPCM_ADMIN
+      version: 2.9.0
+      artifact-source: artifactory://hpe-releases/hpcm-admin/2.9.0
+      third-party: false
+    - product: CPE
+      version: 1.14.3
+      artifact-source: artifactory://hpe-releases/cpe/1.14.3
+      third-party: false
+    - product: PBS
+      version: 2024.1.3
+      artifact-source: artifactory://hpe-releases/pbs/2024.1.3
+      third-party: true   # matches the "Third-Party" flag in Products Management
+
+  # Same combinatorics as Image Types Management: one product bundle,
+  # multiple architecture/distribution pairs.
+  image-types:
+    - architecture: x86_64
+      distribution: RHEL 9.7
+    - architecture: aarch64
+      distribution: RHEL 9.7
+    - architecture: x86_64
+      distribution: Rocky 9.7
+
+  # Optional per-release exclusion — maps to Jennifer's ask to "exclude a
+  # specific artifact for whatever reason" when kicking off a release.
+  exclusions: []
