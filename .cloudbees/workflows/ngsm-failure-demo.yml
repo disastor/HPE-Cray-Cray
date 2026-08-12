@@ -13,8 +13,8 @@
 # Requires these vars/secrets set on this component in Unify:
 #   vars.JIRA_URL            e.g. https://your-domain.atlassian.net
 #   vars.JIRA_PROJECT_KEY    e.g. NGSM
-#   secrets.JIRA_USER_EMAIL  the email tied to the Jira API token
-#   secrets.JIRA_API_TOKEN   generated at id.atlassian.com/manage-profile/security/api-tokens
+#   secrets.JIRA_USERNAME  the email tied to the Jira API token
+#   secrets.JIRA_TOKEN   generated at id.atlassian.com/manage-profile/security/api-tokens
 
 apiVersion: automation.cloudbees.io/v1alpha1
 kind: workflow
@@ -45,7 +45,7 @@ jobs:
         shell: sh
         run: |
           curl -s -w "\nHTTP %{http_code}\n" \
-            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            -u "${{ vars.JIRA_USERNAME }}:${{ secrets.JIRA_TOKEN }}" \
             -X POST \
             -H "Content-Type: application/json" \
             --data '{
