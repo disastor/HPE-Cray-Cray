@@ -13,7 +13,7 @@ jobs:
         shell: sh
         run: |
           echo "hello world"
-          echo "result=failure" >> $CLOUDBEES_OUTPUTS
+          echo -n "failure" > "$CLOUDBEES_OUTPUTS/result"
           exit 1
           
         
