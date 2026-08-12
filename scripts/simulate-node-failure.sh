@@ -33,4 +33,5 @@ echo "  <- aggregate received from Cluster Node N: ERROR - package dependency mi
 
 echo
 echo "Install failed on Cluster Node N. 2/3 nodes succeeded."
+echo "result=failure" >> "${CLOUDBEES_OUTPUTS:-/dev/null}"
 exit 1
