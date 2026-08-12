@@ -6,9 +6,18 @@ on:
 jobs:
   build:
     steps:
-      - name: Say hello
+      - name: say-hello
+        continue-on-error: true
         run: |
           echo "hello world"
           exit 1
+          echo "result=failure" >> $CLOUDBEES_OUTPUTS
         uses: docker://golang:1.20.3-alpine3.17
         shell: sh
+
+      - name: My turn
+        if: ${{steps.say-hello.outputs.result == 'failure'}}
+        uses: docker://golang:1.20.3-alpine3.17
+        shell: sh
+        run: |
+          echo: "I failed, but still ran"
