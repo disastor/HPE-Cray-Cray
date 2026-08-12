@@ -1,14 +1,16 @@
 # ngsm-failure-demo.yml
 #
 # Dedicated failure-scenario demo, separate from ngsm-release.yml so the
-# main release flow stays deterministic. Demonstrates the specific gap
-# Evan called out on the call: closing the loop from a failed run to a
-# Jira ticket, the way Jennifer's team's "auto Jira" already does today.
+# main release flow stays deterministic. Demonstrates the gap Evan
+# called out: closing the loop from a failed run to a Jira ticket, the
+# way Jennifer's team's "auto Jira" already does today.
 #
-# Run this manually right after the main ngsm-release demo to show:
-#   1. A node failing mid-install (2 of 3 succeed, 1 fails)
-#   2. An automatic Jira ticket created for that failure
-#   3. A Slack-style notification referencing the new ticket
+# NOTE: this is deliberately ONE job with continue-on-error + step
+# outcome checks, not multiple jobs chained with needs + if: failure().
+# The cross-job version was tried first and the failure didn't
+# propagate the way CloudBees' own docs suggested it should - this
+# single-job pattern is documented directly in CloudBees' steps syntax
+# reference and is far more reliable.
 #
 # Requires these vars/secrets set on this component in Unify:
 #   vars.JIRA_URL            e.g. https://your-domain.atlassian.net
@@ -25,27 +27,26 @@ on:
 
 jobs:
 
-  simulate-node-failure:
+  simulate-and-report-failure:
     steps:
       - name: Check out repository
         uses: cloudbees-io/checkout@v2
 
-      - name: Deploy via login-node gateway (deliberately fails)
+      - id: simulate-failure
+        name: Deploy via login-node gateway (deliberately fails)
         uses: docker://bash:5.2
         shell: sh
+        continue-on-error: true
         run: |
           bash scripts/simulate-node-failure.sh "https://artifactory.example.internal/hpe-releases/ngsm/${{ cloudbees.version }}/ngsm-release.iso"
 
-  create-jira-ticket:
-    needs: simulate-node-failure
-    if: ${{ failure() }}
-    steps:
       - name: Create Jira ticket for failed node
+        if: ${{ steps.simulate-failure.outcome == 'failure' }}
         uses: docker://curlimages/curl:8.10.1
         shell: sh
         run: |
           curl -s -w "\nHTTP %{http_code}\n" \
-            -u "${{ vars.JIRA_USERNAME }}:${{ secrets.JIRA_TOKEN }}" \
+            -u "${{ secrets.JIRA_USERNAME }}:${{ secrets.JIRA_TOKEN }}" \
             -X POST \
             -H "Content-Type: application/json" \
             --data '{
@@ -58,12 +59,18 @@ jobs:
             }' \
             "${{ vars.JIRA_URL }}/rest/api/2/issue"
 
-  notify:
-    needs: create-jira-ticket
-    steps:
       - name: Post failure status to Slack
+        if: ${{ steps.simulate-failure.outcome == 'failure' }}
         uses: docker://bash:5.2
         shell: sh
         run: |
           echo "Posting to Slack #hpc-releases:"
           echo "ngsm-release ${{ cloudbees.version }} FAILED on Cluster Node N — Jira ticket auto-created, see above for details."
+
+      - name: Reflect the real outcome
+        if: ${{ steps.simulate-failure.outcome == 'failure' }}
+        uses: docker://bash:5.2
+        shell: sh
+        run: |
+          echo "Failing this run to reflect the actual node failure (continue-on-error only kept later steps executing)."
+          exit 1
