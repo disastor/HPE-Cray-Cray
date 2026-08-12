@@ -9,6 +9,7 @@
 set -euo pipefail
 
 ARTIFACT_URL="${1:-unknown-artifact}"
+OUTPUT_DIR="$2"
 
 echo "== Pre-flight: system discovery / heartbeat check =="
 sleep 1
@@ -33,6 +34,5 @@ echo "  <- aggregate received from Cluster Node N: ERROR - package dependency mi
 
 echo
 echo "Install failed on Cluster Node N. 2/3 nodes succeeded."
-echo "result=failure" >> $CLOUDBEES_OUTPUTS
-echo "OUTPUTS: $CLOUDBEES_OUTPUTS"
+printf %s "failure" > "$OUTPUT_DIR/result"
 exit 1
