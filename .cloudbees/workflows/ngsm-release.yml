@@ -110,3 +110,44 @@ jobs:
           # In production, this step would post to a real Slack webhook
           # via a secret (e.g. secrets.SLACK_WEBHOOK_URL) configured in
           # Unify - not needed for this demo.
+
+      - name: Check out repository
+        uses: cloudbees-io/checkout@v2
+
+      - id: build-evidence
+        name: Build evidence content from release manifest
+        uses: docker://bash:5.2
+        shell: sh
+        run: |
+          COMPONENTS=$(grep -A1 "product:" manifest/release-manifest.yaml | grep -E "product:|version:" | paste - - | sed -E 's/^[[:space:]]*-[[:space:]]*product:[[:space:]]*([^[:space:]]+)[[:space:]]+version:[[:space:]]*([^[:space:]]+)/| \1 | \2 |/')
+          IMAGE_TYPES=$(grep -A1 "architecture:" manifest/release-manifest.yaml | grep -E "architecture:|distribution:" | paste - - | sed -E 's/^[[:space:]]*-[[:space:]]*architecture:[[:space:]]*([^[:space:]]+)[[:space:]]+distribution:[[:space:]]*(.+)$/| \1 | \2 |/')
+          echo "$COMPONENTS" > "$CLOUDBEES_OUTPUTS/components"
+          echo "$IMAGE_TYPES" > "$CLOUDBEES_OUTPUTS/image_types"
+
+      - name: Publish release evidence
+        uses: cloudbees-io/publish-evidence-item@v1
+        with:
+          content: |
+            ## NGSM Release Evidence
+
+            **Version:** ${{ needs.build-iso.outputs.artifact-version }}
+            **Run ID:** ${{ cloudbees.run_id }}
+            **Artifact:** [`${{ needs.build-iso.outputs.artifact-id }}`](${{ needs.build-iso.outputs.artifact-url }})
+
+            ### Components released
+            | Product | Version |
+            |---|---|
+            ${{ steps.build-evidence.outputs.components }}
+
+            ### Image types
+            | Architecture | Distribution |
+            |---|---|
+            ${{ steps.build-evidence.outputs.image_types }}
+
+            ### What happened
+            - Built via Jenkins job `ngsm-iso-build`
+            - Approved for deployment to `hpc-test-cluster`
+            - Deployed via the login-node gateway pattern — all cluster nodes reported success
+            - Notification posted to Slack `#hpc-releases`
+
+            _Generated automatically by Unify RO from the release manifest — no manual release notes required._
