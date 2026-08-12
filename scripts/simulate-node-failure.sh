@@ -33,13 +33,6 @@ echo "  <- aggregate received from Cluster Node N: ERROR - package dependency mi
 
 echo
 echo "Install failed on Cluster Node N. 2/3 nodes succeeded."
-if [ -n "${CLOUDBEES_OUTPUTS:-}" ]; then
-  if [ -d "$CLOUDBEES_OUTPUTS" ]; then
-    # Directory convention: one file per output key
-    echo -n "failure" > "$CLOUDBEES_OUTPUTS/result"
-  else
-    # File convention: key=value lines appended
-    echo "result=failure" >> "$CLOUDBEES_OUTPUTS"
-  fi
-fi
+echo "failure" >> $CLOUDBEES_OUTPUTS
+echo "OUTPUTS: $CLOUDBEES_OUTPUTS"
 exit 1
