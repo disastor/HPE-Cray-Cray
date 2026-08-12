@@ -38,7 +38,7 @@ jobs:
         shell: sh
         continue-on-error: true
         run: |
-          bash scripts/simulate-node-failure.sh "https://artifactory.example.internal/hpe-releases/ngsm/${{ cloudbees.version }}/ngsm-release.iso"
+          bash scripts/simulate-node-failure.sh "https://artifactory.example.internal/hpe-releases/ngsm/${{ cloudbees.version }}/ngsm-release.iso" "$CLOUDBEES_OUTPUTS"
 
       - name: Create Jira ticket for failed node
         if: ${{ steps.simulate-failure.outputs.result == 'failure' }}
