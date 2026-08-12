@@ -13,8 +13,9 @@ jobs:
         shell: sh
         run: |
           echo "hello world"
-          exit 1
           echo "result=failure" >> $CLOUDBEES_OUTPUTS
+          exit 1
+          
         
 
       - name: My turn
