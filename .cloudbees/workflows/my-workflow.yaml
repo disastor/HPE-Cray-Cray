@@ -9,12 +9,11 @@ jobs:
       - name: Say Hello
         id: say-hello
         uses: docker://golang:1.20.3-alpine3.17
-        continue-on-error: true
         shell: sh
         run: |
           echo "hello world"
           echo -n "failure" > "$CLOUDBEES_OUTPUTS/result"
-          exit 1
+          exit 0
 
       - name: DEBUG - show raw value
         if: ${{ always() }}
