@@ -60,7 +60,7 @@ jobs:
         shell: sh
         run: |
           curl -s -w "\nHTTP %{http_code}\n" \
-            -u "${{ secrets.JIRA_USERNAME }}:${{ secrets.JIRA_TOKEN }}" \
+            -u "${{ vars.JIRA_USERNAME }}:${{ secrets.JIRA_TOKEN }}" \
             -X POST \
             -H "Content-Type: application/json" \
             --data '{
