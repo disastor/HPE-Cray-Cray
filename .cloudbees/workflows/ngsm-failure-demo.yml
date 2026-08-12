@@ -5,12 +5,20 @@
 # called out: closing the loop from a failed run to a Jira ticket, the
 # way Jennifer's team's "auto Jira" already does today.
 #
-# NOTE on how this checks for failure: steps.<id>.outcome/.conclusion
-# are NOT available in this runtime - confirmed directly by the engine's
-# own error message, which only lists "outputs" as a supported field on
-# a step. So the failing step explicitly writes result=failure to
-# $CLOUDBEES_OUTPUTS itself before exiting, and downstream steps check
-# that output value instead of relying on an implicit outcome field.
+# CONFIRMED ROOT CAUSE (via isolated minimal repro, not guesswork):
+# a step's outputs are only captured by the platform if the step ITSELF
+# exits 0. continue-on-error: true only stops the job from failing -
+# it does not make the platform harvest outputs from a step that
+# exited non-zero. So "simulate-failure" below always exits 0 (it can
+# still narrate a failure and write result=failure to $CLOUDBEES_OUTPUTS),
+# and the real failure is raised later, in "Reflect the real outcome",
+# only after everything conditional on that result has already run.
+#
+# Also confirmed along the way: $CLOUDBEES_OUTPUTS is a directory, not
+# an appendable file, inside any step that uses a `uses:` container
+# action - write one file per output key inside it, e.g.
+# echo -n "value" > "$CLOUDBEES_OUTPUTS/key". And steps.<id>.outcome is
+# not available on `uses:`-based steps at all - only .outputs is.
 #
 # Requires these vars/secrets set on this component in Unify:
 #   vars.JIRA_URL            e.g. https://your-domain.atlassian.net
@@ -36,9 +44,15 @@ jobs:
         name: Deploy via login-node gateway (deliberately fails)
         uses: docker://bash:5.2
         shell: sh
-        continue-on-error: true
         run: |
-          bash scripts/simulate-node-failure.sh "https://artifactory.example.internal/hpe-releases/ngsm/${{ cloudbees.version }}/ngsm-release.iso" "$CLOUDBEES_OUTPUTS"
+          bash scripts/simulate-node-failure.sh "https://artifactory.example.internal/hpe-releases/ngsm/${{ cloudbees.version }}/ngsm-release.iso"
+
+      - name: DEBUG - show raw output value
+        if: ${{ always() }}
+        uses: docker://bash:5.2
+        shell: sh
+        run: |
+          echo "raw value is: [${{ steps.simulate-failure.outputs.result }}]"
 
       - name: Create Jira ticket for failed node
         if: ${{ steps.simulate-failure.outputs.result == 'failure' }}
@@ -46,7 +60,7 @@ jobs:
         shell: sh
         run: |
           curl -s -w "\nHTTP %{http_code}\n" \
-            -u "${{ vars.JIRA_USERNAME }}:${{ secrets.JIRA_TOKEN }}" \
+            -u "${{ secrets.JIRA_USERNAME }}:${{ secrets.JIRA_TOKEN }}" \
             -X POST \
             -H "Content-Type: application/json" \
             --data '{
