@@ -5,18 +5,18 @@
 # called out: closing the loop from a failed run to a Jira ticket, the
 # way Jennifer's team's "auto Jira" already does today.
 #
-# NOTE: this is deliberately ONE job with continue-on-error + step
-# outcome checks, not multiple jobs chained with needs + if: failure().
-# The cross-job version was tried first and the failure didn't
-# propagate the way CloudBees' own docs suggested it should - this
-# single-job pattern is documented directly in CloudBees' steps syntax
-# reference and is far more reliable.
+# NOTE on how this checks for failure: steps.<id>.outcome/.conclusion
+# are NOT available in this runtime - confirmed directly by the engine's
+# own error message, which only lists "outputs" as a supported field on
+# a step. So the failing step explicitly writes result=failure to
+# $CLOUDBEES_OUTPUTS itself before exiting, and downstream steps check
+# that output value instead of relying on an implicit outcome field.
 #
 # Requires these vars/secrets set on this component in Unify:
 #   vars.JIRA_URL            e.g. https://your-domain.atlassian.net
 #   vars.JIRA_PROJECT_KEY    e.g. NGSM
-#   secrets.JIRA_USERNAME  the email tied to the Jira API token
-#   secrets.JIRA_TOKEN   generated at id.atlassian.com/manage-profile/security/api-tokens
+#   secrets.JIRA_USERNAME    the email tied to the Jira API token
+#   secrets.JIRA_TOKEN       generated at id.atlassian.com/manage-profile/security/api-tokens
 
 apiVersion: automation.cloudbees.io/v1alpha1
 kind: workflow
@@ -41,7 +41,7 @@ jobs:
           bash scripts/simulate-node-failure.sh "https://artifactory.example.internal/hpe-releases/ngsm/${{ cloudbees.version }}/ngsm-release.iso"
 
       - name: Create Jira ticket for failed node
-        if: ${{ steps.simulate-failure.outcome == 'failure' }}
+        if: ${{ steps.simulate-failure.outputs.result == 'failure' }}
         uses: docker://curlimages/curl:8.10.1
         shell: sh
         run: |
@@ -60,7 +60,7 @@ jobs:
             "${{ vars.JIRA_URL }}/rest/api/2/issue"
 
       - name: Post failure status to Slack
-        if: ${{ steps.simulate-failure.outcome == 'failure' }}
+        if: ${{ steps.simulate-failure.outputs.result == 'failure' }}
         uses: docker://bash:5.2
         shell: sh
         run: |
@@ -68,7 +68,7 @@ jobs:
           echo "ngsm-release ${{ cloudbees.version }} FAILED on Cluster Node N — Jira ticket auto-created, see above for details."
 
       - name: Reflect the real outcome
-        if: ${{ steps.simulate-failure.outcome == 'failure' }}
+        if: ${{ steps.simulate-failure.outputs.result == 'failure' }}
         uses: docker://bash:5.2
         shell: sh
         run: |
