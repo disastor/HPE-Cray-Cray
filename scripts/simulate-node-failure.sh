@@ -5,11 +5,15 @@
 # fails, so there's a real non-zero exit for the workflow to react to.
 # Kept separate from install-via-login-node.sh so the main release demo
 # stays deterministic and this can be run repeatedly on its own.
+#
+# Writes an explicit "result" output file into $CLOUDBEES_OUTPUTS
+# (confirmed to be a directory, not an appendable file, in this
+# docker://bash:5.2 step context) since steps.<id>.outcome is not
+# available on steps that use a `uses:` container action.
 
 set -euo pipefail
 
 ARTIFACT_URL="${1:-unknown-artifact}"
-OUTPUT_DIR="$2"
 
 echo "== Pre-flight: system discovery / heartbeat check =="
 sleep 1
@@ -34,5 +38,14 @@ echo "  <- aggregate received from Cluster Node N: ERROR - package dependency mi
 
 echo
 echo "Install failed on Cluster Node N. 2/3 nodes succeeded."
-printf %s "failure" > "$OUTPUT_DIR/result"
-exit 1
+echo "CLOUDBEES_OUTPUTS is: ${CLOUDBEES_OUTPUTS:-UNSET}"
+if [ -n "${CLOUDBEES_OUTPUTS:-}" ]; then
+  ls -la "$CLOUDBEES_OUTPUTS" 2>&1 || echo "(could not list CLOUDBEES_OUTPUTS)"
+  echo -n "failure" > "$CLOUDBEES_OUTPUTS/result"
+  echo "Wrote result=failure to $CLOUDBEES_OUTPUTS/result"
+fi
+# This step must exit 0 - outputs are only captured when the step
+# itself succeeds. The "Reflect the real outcome" step later in the
+# workflow is what actually fails the run, once everything conditional
+# on this result has already had a chance to execute.
+exit 0
