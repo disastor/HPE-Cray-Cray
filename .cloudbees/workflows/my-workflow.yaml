@@ -15,13 +15,18 @@ jobs:
           echo "hello world"
           echo -n "failure" > "$CLOUDBEES_OUTPUTS/result"
           exit 1
-          
-        
+
+      - name: DEBUG - show raw value
+        if: ${{ always() }}
+        uses: docker://golang:1.20.3-alpine3.17
+        shell: sh
+        run: |
+          echo "raw value is: [${{ steps.say-hello.outputs.result }}]"
 
       - name: My turn
         id: my-turn
         uses: docker://golang:1.20.3-alpine3.17
-        if: ${{steps.say-hello.outputs.result == 'failure'}}
+        if: ${{ steps.say-hello.outputs.result == 'failure' }}
         shell: sh
         run: |
-          echo: "I failed, but still ran"
+          echo "I failed, but still ran"
